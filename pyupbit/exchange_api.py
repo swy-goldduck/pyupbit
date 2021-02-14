@@ -3,6 +3,8 @@ import uuid
 import hashlib
 from urllib.parse import urlencode
 from pyupbit.request_api import _send_get_request, _send_post_request, _send_delete_request
+from time import sleep
+import math
 
 
 # 원화 마켓 주문 가격 단위
@@ -52,6 +54,68 @@ class Upbit:
         authorization_token = 'Bearer {}'.format(jwt_token)
         headers = {"Authorization": authorization_token}
         return headers
+
+    def get_wallet_address(self, currency, contain_req=False):
+        """
+        마켓별 주문 가능 정보를 확인.
+        :param ticker:
+        :param contain_req: Remaining-Req 포함여부
+        :return: 마켓별 주문 가능 정보를 확인
+        [contain_req == True 일 경우 Remaining-Req가 포함]
+        """
+        try:
+            url = "https://api.upbit.com/v1/deposits/coin_address"
+            data = {"currency": currency}
+            headers = self._request_headers(data)
+            result = _send_get_request(url, headers=headers, data=data)
+            if contain_req:
+                return result
+            else:
+                return result[0]
+        except Exception as x:
+            print(x.__class__.__name__)
+            return None
+
+    def get_withdrawal_chance(self, currency, contain_req=False):
+        """
+        마켓별 주문 가능 정보를 확인.
+        :param ticker:
+        :param contain_req: Remaining-Req 포함여부
+        :return: 마켓별 주문 가능 정보를 확인
+        [contain_req == True 일 경우 Remaining-Req가 포함]
+        """
+        try:
+            url = "https://api.upbit.com/v1/withdraws/chance"
+            data = {"currency": currency}
+            headers = self._request_headers(data)
+            result = _send_get_request(url, headers=headers, data=data)
+            if contain_req:
+                return result
+            else:
+                return result[0]
+        except Exception as x:
+            print(x.__class__.__name__)
+            return None
+
+    def withdraw_coin(self, currency, amount, address, secondary_address, transaction_type="default", contain_req=False):
+        """
+        withdraw coins
+        """
+        try:
+            url = "https://api.upbit.com/v1/withdraws/coin"
+            data = {"currency": currency,
+                    "amount": str(amount),
+                    "address": address,
+                    "secondary_address": secondary_address}
+            headers = self._request_headers(data)
+            result = _send_post_request(url, headers=headers, data=data)
+            if contain_req:
+                return result
+            else:
+                return result[0]
+        except Exception as x:
+            print(x.__class__.__name__)
+            return None
 
     # region balance
     def get_balances(self, contain_req=False):
@@ -348,7 +412,7 @@ class Upbit:
             print(x.__class__.__name__)
             return None
 
-    def get_order(self, ticker, state='wait', kind='normal', contain_req=False):
+    def get_orders(self, ticker, state='wait', kind='normal', contain_req=False):
         """
         주문 리스트 조회
         :param ticker: market
@@ -376,14 +440,36 @@ class Upbit:
             return None
     # endregion order
 
+    def get_order(self, quuid, contain_req=False):
+        """
+        주문 리스트 조회
+        :param ticker: market
+        :param state: 주문 상태(wait, done, cancel)
+        :param kind: 주문 유형(normal, watch)
+        :param contain_req: Remaining-Req 포함여부
+        :return:
+        """
+        # TODO : states, uuids, identifiers 관련 기능 추가 필요
+        try:
+            url = "https://api.upbit.com/v1/order"
+            data = {'uuid': quuid, }
+            headers = self._request_headers(data)
+            result = _send_get_request(url, headers=headers, data=data)
+            if contain_req:
+                return result
+            else:
+                return result[0]
+        except Exception as x:
+            print(x.__class__.__name__)
+            return None
+     #endregion order
 
 if __name__ == "__main__":
     import pprint
-    with open("../upbit.txt") as f:
-        lines = f.readlines()
-        access = lines[0].strip()
-        secret = lines[1].strip()
-
+    #with open("../upbit.txt") as f:
+#        lines = f.readlines()
+#        access = lines[0].strip()
+#        secret = lines[1].strip()
     # Exchange API 사용을 위한 객체 생성
     upbit = Upbit(access, secret)
 
@@ -391,14 +477,38 @@ if __name__ == "__main__":
     # Exchange API
     #-------------------------------------------------------------------------
     # 자산 - 전체 계좌 조회
-    balances = upbit.get_balances()
-    pprint.pprint(balances)
-
+    currency = "KRW-HIVE"
+    PIE = 800000
+    #res = upbit.get_order(currency, 'done')
+#    res = upbit.buy_market_order(currency,PIE)
+#    print(res)
+#    myuuid = res['uuid']
+#    res = upbit.get_order(myuuid)
+#    print(res)
+#    res = upbit.get_avg_price(myuuid, PIE)
+#    print(res)
+#    res = upbit.get_orders(ticker=currency, state='done')
+#    print(res)
+#    print('')    
+    #res = upbit.get_balances()
+    #print(res)
+    '''
+    print("test!!")
+    print(balances[0]["balance"])
+    print(balances[1]["balance"])
     # 원화 잔고 조회
     print(upbit.get_balance(ticker="KRW"))          # 보유 KRW
     print(upbit.get_amount('ALL'))                  # 총매수금액
     print(upbit.get_balance(ticker="KRW-BTC"))      # 비트코인 보유수량
     print(upbit.get_balance(ticker="KRW-XRP"))      # 리플 보유수량
+    res = upbit.get_wallet_address("BTC")
+    print(res)
+    qq = res["secondary_address"]
+    print("test!!!", qq)
+    #print(upbit.get_withdrawal_chance(currency="XRP"))
+    #res = upbit.withdraw_coin(currency="XRP",amount="25000",address="rDxfhNRgCDNDckm45zT5ayhKDC4Ljm7UoP", secondary_address="1001201284")
+    #if "uuid" in res:
+    #    print("success")
 
     #print(upbit.get_chance('KRW-HBAR'))
     #print(upbit.get_order('KRW-BTC'))
@@ -413,7 +523,8 @@ if __name__ == "__main__":
     # print(upbit.cancel_order('82e211da-21f6-4355-9d76-83e7248e2c0c'))
 
     # 시장가 주문 테스트
-    # upbit.buy_market_order("KRW-XRP", 10000)
+    #res = upbit.sell_market_order("KRW-XRP", 5)
 
     # 시장가 매도 테스트
     # upbit.sell_market_order("KRW-XRP", 36)
+    '''
